@@ -1,0 +1,74 @@
+@page
+@model EnigmaChamber.Web.Pages.IndexModel
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Operator Panel</h1>
+        <p class="page-subtitle">Today's Bookings — @DateTime.Today.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("en-US")) · @Model.TodayBookings.Count slot(s)</p>
+    </div>
+    <a class="btn btn-enigma" asp-page="/Bookings/Index" asp-route-openCreate="true">+ New Booking</a>
+</div>
+
+<div class="section-label">Today's Games</div>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="enigma-card mb-3" style="border-color: var(--rec);">
+        <span class="text-validation-error">@err</span>
+    </div>
+}
+
+@if (!Model.TodayBookings.Any())
+{
+    <div class="enigma-card empty-state">No bookings for today.</div>
+}
+else
+{
+    <div class="slot-grid">
+        @foreach (var b in Model.TodayBookings)
+        {
+            var badge = b.Status.ToLowerInvariant() switch
+            {
+                "pending" => "badge-status-pending",
+                "inprogress" => "badge-status-inprogress",
+                "completed" => "badge-status-completed",
+                "failed" => "badge-status-failed",
+                _ => "badge-status-cancelled"
+            };
+            <div class="slot-card d-flex flex-column justify-content-between">
+                <div>
+                    <div class="mb-2 text-start">
+                        <div class="slot-time mono fs-4">@b.ScheduledAt.ToString("HH:mm")</div>
+                        <div class="mt-1"><span class="badge @badge">@EnigmaChamber.Web.Models.BookingStatuses.Display(b.Status)</span></div>
+                    </div>
+                    <div class="fw-bold text-light text-start">@b.Room?.Name</div>
+                    <div class="small text-muted mt-1 text-start">@b.CustomerName • @b.PlayerCount players</div>
+                    <div class="small text-muted mt-1 text-start">
+                        GM: @(b.GameMaster?.Name ?? "—")@(b.Room?.HasActor == true ? $" • Actor: {b.Actor?.Name ?? "—"}" : "")
+                    </div>
+                </div>
+                <div class="mt-3">
+                    @if (b.Status == EnigmaChamber.Web.Models.BookingStatuses.Pending)
+                    {
+                        <form method="post" asp-page-handler="Start" asp-route-id="@b.Id" class="mb-1">
+                            <button type="submit" class="btn btn-sm btn-enigma w-100">START GAME</button>
+                        </form>
+                        <form method="post" asp-page-handler="Cancel" asp-route-id="@b.Id"
+                              onsubmit="return confirm('Cancel booking for @b.CustomerName?');">
+                            <button type="submit" class="btn btn-sm btn-outline-enigma w-100">CANCEL</button>
+                        </form>
+                    }
+                    else if (b.Status == EnigmaChamber.Web.Models.BookingStatuses.InProgress)
+                    {
+                        <form method="post" asp-page-handler="Complete" asp-route-id="@b.Id">
+                            <button type="submit" class="btn btn-sm btn-outline-success w-100">COMPLETE</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
