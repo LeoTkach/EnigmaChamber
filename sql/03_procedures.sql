@@ -1,40 +1,50 @@
 USE EnigmaChamber;
 GO
 
+-- Створення бронювання з перевіркою вільного слоту (буфер 15 хв на прибирання)
 CREATE OR ALTER PROCEDURE dbo.sp_CreateBooking
     @RoomId        INT,
     @CustomerName  NVARCHAR(100),
     @CustomerPhone NVARCHAR(20),
     @PlayerCount   INT,
-    @ScheduledAt   DATETIME2,
-    @NewBookingId  INT OUTPUT
+    @ScheduledAt   DATETIME,
+    @BookingId     INT OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
-    IF NOT EXISTS (SELECT 1 FROM dbo.Rooms WHERE Id = @RoomId AND IsActive = 1)
-        THROW 50001, N'Кімната не знайдена або неактивна.', 1;
+        DECLARE @Duration INT;
+        SELECT @Duration = DurationMinutes FROM Rooms WHERE Id = @RoomId;
 
-    DECLARE @MaxPlayers INT;
-    SELECT @MaxPlayers = MaxPlayers FROM dbo.Rooms WHERE Id = @RoomId;
+        DECLARE @Buffer INT = 15;
+        DECLARE @TotalDuration INT = @Duration + @Buffer;
 
-    IF @PlayerCount > @MaxPlayers
-        THROW 50002, N'Забагато гравців для цієї кімнати.', 1;
+        DECLARE @EndTime DATETIME = DATEADD(minute, @TotalDuration, @ScheduledAt);
 
-    IF EXISTS (
-        SELECT 1
-        FROM dbo.Bookings b
-        INNER JOIN dbo.Rooms r ON r.Id = b.RoomId
-        WHERE b.RoomId = @RoomId
-          AND b.Status IN (N'Pending', N'InProgress')
-          AND b.ScheduledAt < DATEADD(MINUTE, r.DurationMinutes, @ScheduledAt)
-          AND DATEADD(MINUTE, r.DurationMinutes, b.ScheduledAt) > @ScheduledAt
-    )
-        THROW 50003, N'Цей часовий слот уже зайнятий.', 1;
+        IF EXISTS (
+            SELECT 1 FROM Bookings
+            WHERE RoomId = @RoomId
+            AND Status != 'Cancelled'
+            AND ScheduledAt < @EndTime
+            AND DATEADD(minute, @TotalDuration, ScheduledAt) > @ScheduledAt
+        )
+        BEGIN
+            THROW 50001, 'Час вже заброньовано.', 1;
+        END
 
-    INSERT INTO dbo.Bookings (RoomId, CustomerName, CustomerPhone, PlayerCount, ScheduledAt, Status)
-    VALUES (@RoomId, @CustomerName, @CustomerPhone, @PlayerCount, @ScheduledAt, N'Pending');
+        INSERT INTO Bookings (RoomId, CustomerName, CustomerPhone, PlayerCount, ScheduledAt, Status)
+        VALUES (@RoomId, @CustomerName, @CustomerPhone, @PlayerCount, @ScheduledAt, 'Pending');
 
-    SET @NewBookingId = SCOPE_IDENTITY();
+        SET @BookingId = SCOPE_IDENTITY();
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
 GO
