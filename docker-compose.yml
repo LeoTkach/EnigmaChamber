@@ -23,6 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: enigmachamber-web
     environment:
+      TZ: ${TZ:-Europe/Dublin}
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=${DB_NAME:-EnigmaChamber};User Id=${DB_USER:-sa};Password=${SA_PASSWORD:-EnigmaChamber_StrongPass123!};TrustServerCertificate=True;MultipleActiveResultSets=true"
