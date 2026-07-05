@@ -1,0 +1,212 @@
+@page
+@model EnigmaChamber.Web.Pages.Rooms.IndexModel
+@{
+    ViewData["Title"] = "Rooms";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Escape Rooms</h1>
+        <p class="page-subtitle">Manage rooms and session parameters</p>
+    </div>
+    <button type="button" class="btn btn-enigma" data-bs-toggle="modal" data-bs-target="#roomModal">
+        + New Room
+    </button>
+</div>
+
+<div class="section-label">Security Cameras</div>
+
+<div class="row g-3">
+@{
+    var camIndex = 0;
+}
+@foreach (var room in Model.Items)
+{
+    camIndex++;
+    var diffBars = $"{new string('▮', Math.Clamp(room.Difficulty, 0, 5))}{new string('▯', 5 - Math.Clamp(room.Difficulty, 0, 5))}";
+
+    <div class="col-md-4">
+        <div class="cam-card @(room.IsActive ? "" : "cam-offline")">
+            <div class="cam-view">
+                <div class="cam-header">
+                    <span class="cam-rec-group">
+                        <span class="rec-dot"></span>
+                        <span class="cam-rec-text">REC</span>
+                    </span>
+                    <span class="cam-id">CAM @camIndex.ToString("00")</span>
+                    <span class="cam-live">LIVE</span>
+                    <span class="cam-status">@(room.IsActive ? "ONLINE" : "OFFLINE")</span>
+                </div>
+                <div class="cam-viewfinder" aria-hidden="true">
+                    <span class="vf-corner vf-tl"></span>
+                    <span class="vf-corner vf-tr"></span>
+                    <span class="vf-corner vf-bl"></span>
+                    <span class="vf-corner vf-br"></span>
+                    <span class="cam-crosshair"></span>
+                </div>
+                <span class="cam-view-code">R-@camIndex.ToString("00")</span>
+                <span class="cam-sweep"></span>
+                <span class="cam-view-time">@room.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</span>
+            </div>
+            <div class="cam-body">
+                <h5 class="cam-title">@room.Name</h5>
+                <div class="cam-substatus @(room.IsActive ? "on" : "off")">
+                    @(room.IsActive ? "ACTIVE SESSION" : "MAINTENANCE")
+                </div>
+                @if (!string.IsNullOrWhiteSpace(room.Description))
+                {
+                    <p class="cam-desc">@room.Description</p>
+                }
+                <div class="cam-specs">
+                    <div class="cam-spec-row"><span>Duration</span><span>@room.DurationMinutes min</span></div>
+                    <div class="cam-spec-row"><span>Players</span><span>@room.MinPlayers–@room.MaxPlayers</span></div>
+                    <div class="cam-spec-row"><span>Age</span><span>@room.MinAge+</span></div>
+                    <div class="cam-spec-row"><span>Difficulty</span><span>@diffBars</span></div>
+                    <div class="cam-spec-row"><span>Cost</span><span>$@room.Price.ToString("N0")</span></div>
+                    <div class="cam-spec-row"><span>Role</span><span>@(room.HasActor ? "Actor" : "None")</span></div>
+                </div>
+            </div>
+            <div class="cam-footer">
+                <button type="button" class="btn-tactile btn-tactile-enigma"
+                        data-bs-toggle="modal" data-bs-target="#roomModal"
+                        data-id="@room.Id"
+                        data-name="@room.Name"
+                        data-description="@room.Description"
+                        data-minplayers="@room.MinPlayers"
+                        data-maxplayers="@room.MaxPlayers"
+                        data-duration="@room.DurationMinutes"
+                        data-difficulty="@room.Difficulty"
+                        data-price="@room.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                        data-minage="@room.MinAge"
+                        data-hasactor="@room.HasActor.ToString().ToLowerInvariant()"
+                        data-isactive="@room.IsActive.ToString().ToLowerInvariant()">
+                    EDIT
+                </button>
+                <form method="post" asp-page-handler="Delete" asp-route-id="@room.Id"
+                      onsubmit="return confirm('Delete room \'@room.Name\'? Associated bookings will also be deleted.');"
+                      style="margin: 0;">
+                    <button type="submit" class="btn-tactile btn-tactile-enigma">DELETE</button>
+                </form>
+            </div>
+            @if (!room.IsActive)
+            {
+                <div class="cam-static"><span>SIGNAL LOST</span></div>
+            }
+        </div>
+    </div>
+}
+</div>
+
+<div class="modal fade" id="roomModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Save" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div asp-validation-summary="ModelOnly" class="text-validation-error mb-2"></div>
+                <input type="hidden" asp-for="Input.Id" />
+                <div class="mb-3">
+                    <label asp-for="Input.Name" class="form-label"></label>
+                    <input asp-for="Input.Name" class="form-control" />
+                    <span asp-validation-for="Input.Name" class="field-validation-error"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.Description" class="form-label"></label>
+                    <textarea asp-for="Input.Description" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.MinPlayers" class="form-label"></label>
+                        <input asp-for="Input.MinPlayers" class="form-control" />
+                        <span asp-validation-for="Input.MinPlayers" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.MaxPlayers" class="form-label"></label>
+                        <input asp-for="Input.MaxPlayers" class="form-control" />
+                        <span asp-validation-for="Input.MaxPlayers" class="field-validation-error"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.DurationMinutes" class="form-label"></label>
+                        <input asp-for="Input.DurationMinutes" class="form-control" />
+                        <span asp-validation-for="Input.DurationMinutes" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.Difficulty" class="form-label"></label>
+                        <select asp-for="Input.Difficulty" class="form-select">
+                            <option value="1">1 — easy</option>
+                            <option value="2">2</option>
+                            <option value="3">3 — medium</option>
+                            <option value="4">4</option>
+                            <option value="5">5 — hardcore</option>
+                        </select>
+                        <span asp-validation-for="Input.Difficulty" class="field-validation-error"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.Price" class="form-label"></label>
+                        <input asp-for="Input.Price" class="form-control" />
+                        <span asp-validation-for="Input.Price" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.MinAge" class="form-label"></label>
+                        <input asp-for="Input.MinAge" class="form-control" />
+                        <span asp-validation-for="Input.MinAge" class="field-validation-error"></span>
+                    </div>
+                </div>
+                <div class="form-check mb-2">
+                    <input asp-for="Input.HasActor" class="form-check-input" />
+                    <label asp-for="Input.HasActor" class="form-check-label"></label>
+                </div>
+                <div class="form-check">
+                    <input asp-for="Input.IsActive" class="form-check-input" />
+                    <label asp-for="Input.IsActive" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-enigma" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-enigma">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const roomModal = document.getElementById('roomModal');
+
+        roomModal.addEventListener('show.bs.modal', event => {
+            const btn = event.relatedTarget;
+            if (!btn) return;
+
+            const isEdit = btn.hasAttribute('data-id');
+            roomModal.querySelector('.modal-title').textContent =
+                isEdit ? 'Edit Room' : 'New Room';
+
+            roomModal.querySelector('#Input_Id').value = btn.dataset.id ?? '0';
+            roomModal.querySelector('#Input_Name').value = btn.dataset.name ?? '';
+            roomModal.querySelector('#Input_Description').value = btn.dataset.description ?? '';
+            roomModal.querySelector('#Input_MinPlayers').value = btn.dataset.minplayers ?? '2';
+            roomModal.querySelector('#Input_MaxPlayers').value = btn.dataset.maxplayers ?? '6';
+            roomModal.querySelector('#Input_DurationMinutes').value = btn.dataset.duration ?? '60';
+            roomModal.querySelector('#Input_Difficulty').value = btn.dataset.difficulty ?? '3';
+            roomModal.querySelector('#Input_Price').value = btn.dataset.price ?? '100';
+            roomModal.querySelector('#Input_MinAge').value = btn.dataset.minage ?? '12';
+            roomModal.querySelector('#Input_HasActor').checked =
+                isEdit ? btn.dataset.hasactor === 'true' : false;
+            roomModal.querySelector('#Input_IsActive').checked =
+                isEdit ? btn.dataset.isactive === 'true' : true;
+        });
+    </script>
+    @if (Model.ShowModal)
+    {
+        <script>
+            new bootstrap.Modal(roomModal).show();
+        </script>
+    }
+}

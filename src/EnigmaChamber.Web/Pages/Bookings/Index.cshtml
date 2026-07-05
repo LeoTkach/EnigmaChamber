@@ -1,0 +1,285 @@
+@page
+@model EnigmaChamber.Web.Pages.Bookings.IndexModel
+@{
+    ViewData["Title"] = "Bookings";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Bookings</h1>
+        <p class="page-subtitle">All customer reservations</p>
+    </div>
+    <button type="button" class="btn btn-enigma" data-bs-toggle="modal" data-bs-target="#bookingModal">
+        + New Booking
+    </button>
+</div>
+
+<div class="d-flex mb-4 gap-3">
+    <a asp-page="./Index" asp-route-mode="Schedule" asp-route-roomId="@Model.SelectedRoomId"
+       class="btn @(Model.ViewMode == "Schedule" ? "btn-enigma" : "btn-outline-enigma")">SCHEDULE</a>
+    <a asp-page="./Index" asp-route-mode="Journal" asp-route-roomId="@Model.SelectedRoomId"
+       class="btn @(Model.ViewMode == "Journal" ? "btn-enigma" : "btn-outline-enigma")">JOURNAL</a>
+</div>
+
+@if (Model.ViewMode == "Schedule")
+{
+    <div class="mb-4">
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var room in Model.Rooms)
+            {
+                <a asp-page="./Index" asp-route-mode="Schedule" asp-route-roomId="@room.Id"
+                   class="btn @(Model.SelectedRoomId == room.Id ? "btn-enigma" : "btn-outline-enigma")">
+                   @room.Name
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (Model.SelectedRoomId.HasValue)
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-bordered text-center align-middle" style="table-layout: fixed;">
+                <thead>
+                    <tr>
+                        @for (int i = 0; i < 7; i++)
+                        {
+                            var date = Model.ScheduleStartDate.AddDays(i);
+                            <th>@date.ToString("ddd, dd.MM")</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        // Find max slots in any day to determine row count
+                        int maxSlots = Model.ScheduleSlots.Values.Select(v => v.Count).DefaultIfEmpty(0).Max();
+                    }
+                    @for (int row = 0; row < maxSlots; row++)
+                    {
+                        <tr>
+                            @for (int day = 0; day < 7; day++)
+                            {
+                                var date = Model.ScheduleStartDate.AddDays(day);
+                                if (Model.ScheduleSlots.TryGetValue(date, out var daySlots) && row < daySlots.Count)
+                                {
+                                    var slot = daySlots[row];
+                                    <td class="p-2">
+                                        @if (slot.IsAvailable)
+                                        {
+                                            <div class="border border-success text-success p-2 rounded slot-card"
+                                                 style="cursor: pointer; background: rgba(25, 135, 84, 0.1);"
+                                                 onclick="openBookingModal('@slot.StartTime.ToString("yyyy-MM-ddTHH:mm")')">
+                                                <div class="mono fw-bold">@slot.StartTime.ToString("HH:mm") - @slot.EndTime.ToString("HH:mm")</div>
+                                                <small>Available</small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="border border-danger text-danger p-2 rounded slot-card"
+                                                 style="background: rgba(220, 53, 69, 0.1);">
+                                                <div class="mono fw-bold">@slot.StartTime.ToString("HH:mm") - @slot.EndTime.ToString("HH:mm")</div>
+                                                <small>Booked: @slot.CustomerName</small>
+                                            </div>
+                                        }
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td></td>
+                                }
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+else
+{
+    <div class="section-label">BOOKINGS LOG</div>
+
+    @if (TempData["Error"] is string err)
+    {
+        <div class="enigma-card mb-3" style="border-color: var(--rec);">
+            <span class="text-validation-error">@err</span>
+        </div>
+    }
+
+    @if (!Model.Items.Any())
+    {
+        <div class="enigma-card empty-state">No records found</div>
+    }
+    else
+    {
+        <div class="enigma-card log-panel table-responsive">
+            <table class="table table-enigma mb-0">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Time</th>
+                    <th>Room</th>
+                    <th>Customer</th>
+                    <th>Players</th>
+                    <th>Game Master</th>
+                    <th>Actor</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @{ var rowNum = 0; }
+                @foreach (var b in Model.Items)
+                {
+                    rowNum++;
+                    <tr>
+                        <td class="row-num">@rowNum.ToString("000")</td>
+                        <td class="mono">@b.ScheduledAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>@b.Room?.Name</td>
+                        <td>
+                            @b.CustomerName
+                            <div class="small text-muted mono">@b.CustomerPhone</div>
+                        </td>
+                        <td>@b.PlayerCount</td>
+                        <td>@(b.GameMaster?.Name ?? "—")</td>
+                        <td>@(b.Actor?.Name ?? (b.Room?.HasActor == true ? "required!" : "—"))</td>
+                        <td><span class="badge badge-status-@b.Status.ToLowerInvariant()">@EnigmaChamber.Web.Models.BookingStatuses.Display(b.Status)</span></td>
+                        <td class="text-end text-nowrap">
+                            @if (b.Status == EnigmaChamber.Web.Models.BookingStatuses.Pending)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-enigma"
+                                        data-bs-toggle="modal" data-bs-target="#assignModal"
+                                        data-id="@b.Id" data-customer="@b.CustomerName"
+                                        data-gm="@(b.GameMasterId?.ToString() ?? "")"
+                                        data-actor="@(b.ActorId?.ToString() ?? "")">
+                                    STAFF
+                                </button>
+                                <form method="post" asp-page-handler="Cancel" asp-route-id="@b.Id" class="d-inline"
+                                      onsubmit="return confirm('Cancel booking for \'@b.CustomerName\'?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-enigma">CANCEL</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+<div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Assign" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Staff Assignment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="id" id="assignBookingId" />
+                <p class="text-muted small mb-3" id="assignCustomer"></p>
+                <div class="mb-3">
+                    <label class="form-label">Game Master</label>
+                    <select name="gameMasterId" id="assignGm" class="form-select" asp-items="Model.GameMasterOptions">
+                        <option value="">— unassigned —</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Actor</label>
+                    <select name="actorId" id="assignActor" class="form-select" asp-items="Model.ActorOptions">
+                        <option value="">— not required —</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-enigma" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-enigma">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Create" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div asp-validation-summary="ModelOnly" class="text-validation-error mb-2"></div>
+                <div class="mb-3">
+                    <label asp-for="Input.RoomId" class="form-label"></label>
+                    <select asp-for="Input.RoomId" asp-items="Model.RoomOptions" class="form-select"></select>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.CustomerName" class="form-label"></label>
+                    <input asp-for="Input.CustomerName" class="form-control" />
+                    <span asp-validation-for="Input.CustomerName" class="field-validation-error"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.CustomerPhone" class="form-label"></label>
+                    <input asp-for="Input.CustomerPhone" class="form-control" placeholder="+380..." />
+                    <span asp-validation-for="Input.CustomerPhone" class="field-validation-error"></span>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.PlayerCount" class="form-label"></label>
+                        <input asp-for="Input.PlayerCount" class="form-control" />
+                        <span asp-validation-for="Input.PlayerCount" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.ScheduledAt" class="form-label"></label>
+                        <input asp-for="Input.ScheduledAt" class="form-control" type="datetime-local"
+                               value="@Model.Input.ScheduledAt.ToString("yyyy-MM-ddTHH:mm")" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.GameMasterId" class="form-label"></label>
+                        <select asp-for="Input.GameMasterId" asp-items="Model.GameMasterOptions" class="form-select">
+                            <option value="">— later —</option>
+                        </select>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.ActorId" class="form-label"></label>
+                        <select asp-for="Input.ActorId" asp-items="Model.ActorOptions" class="form-select">
+                            <option value="">— not required —</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-enigma" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-enigma">Confirm Booking</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function openBookingModal(datetime) {
+            document.getElementById('Input_ScheduledAt').value = datetime;
+            var modal = new bootstrap.Modal(document.getElementById('bookingModal'));
+            modal.show();
+        }
+
+        const assignModal = document.getElementById('assignModal');
+        assignModal.addEventListener('show.bs.modal', event => {
+            const btn = event.relatedTarget;
+            if (!btn) return;
+            document.getElementById('assignBookingId').value = btn.dataset.id;
+            document.getElementById('assignCustomer').textContent = 'Booking: ' + btn.dataset.customer;
+            document.getElementById('assignGm').value = btn.dataset.gm ?? '';
+            document.getElementById('assignActor').value = btn.dataset.actor ?? '';
+        });
+        
+        @if (Model.ShowModal)
+        {
+            <text>
+            new bootstrap.Modal(document.getElementById('bookingModal')).show();
+            </text>
+        }
+    </script>
+}

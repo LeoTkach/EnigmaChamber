@@ -1,0 +1,56 @@
+@page
+@model EnigmaChamber.Web.Pages.Audit.IndexModel
+@{
+    ViewData["Title"] = "Audit Log";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Audit Log</h1>
+        <p class="page-subtitle">Last 50 events — recorded automatically</p>
+    </div>
+</div>
+
+<div class="section-label">System Events</div>
+
+@if (!Model.Items.Any())
+{
+    <div class="enigma-card empty-state">Log is empty</div>
+}
+else
+{
+    <div class="enigma-card log-panel table-responsive">
+        <table class="table table-enigma mb-0">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>TIME</th>
+                <th>TABLE</th>
+                <th>RECORD</th>
+                <th>ACTION</th>
+                <th>DETAILS</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var a in Model.Items)
+            {
+                var actionColor = a.Action switch
+                {
+                    "INSERT" => "badge-status-completed",
+                    "UPDATE" => "badge-status-pending",
+                    "DELETE" => "badge-status-failed",
+                    _ => "badge-status-cancelled"
+                };
+                <tr>
+                    <td class="row-num">@a.Id.ToString("000")</td>
+                    <td class="mono">@a.ChangedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</td>
+                    <td class="mono">@a.TableName</td>
+                    <td class="mono">#@a.RecordId</td>
+                    <td><span class="badge @actionColor">@a.Action</span></td>
+                    <td class="text-muted">@a.NewValue</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

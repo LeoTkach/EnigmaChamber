@@ -1,0 +1,66 @@
+@page
+@model EnigmaChamber.Web.Pages.Stats.IndexModel
+@{
+    ViewData["Title"] = "Stats";
+    var monthName = new DateTime(Model.Year, Model.Month, 1).ToString("MMMM yyyy", new System.Globalization.CultureInfo("en-US"));
+    var prev = new DateTime(Model.Year, Model.Month, 1).AddMonths(-1);
+    var next = new DateTime(Model.Year, Model.Month, 1).AddMonths(1);
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Monthly Statistics</h1>
+        <p class="page-subtitle">Aggregated performance data</p>
+    </div>
+</div>
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a class="btn btn-outline-enigma btn-sm" asp-page="./Index" asp-route-year="@prev.Year" asp-route-month="@prev.Month">← @prev.ToString("MMM yyyy", new System.Globalization.CultureInfo("en-US"))</a>
+    <span class="mono text-uppercase" style="letter-spacing: 0.15em; color: var(--accent);">@monthName</span>
+    <a class="btn btn-outline-enigma btn-sm" asp-page="./Index" asp-route-year="@next.Year" asp-route-month="@next.Month">@next.ToString("MMM yyyy", new System.Globalization.CultureInfo("en-US")) →</a>
+</div>
+
+
+@if (!Model.Stats.Any() || Model.Stats.All(i => i.GamesTotal == 0))
+{
+    <div class="enigma-card empty-state">No games played during this month.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-dark table-enigma align-middle">
+            <thead>
+            <tr>
+                <th>ROOM</th>
+                <th>TOTAL GAMES</th>
+                <th>SUCCESS RATE</th>
+                <th>AVG ELAPSED (MIN)</th>
+                <th>AVG HINTS</th>
+                <th>REVENUE</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var stat in Model.Stats)
+            {
+                <tr>
+                    <td class="fw-bold">@stat.RoomName</td>
+                    <td class="mono fs-5">@stat.GamesTotal</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress" style="width: 100px; height: 10px; background-color: var(--color-surface);">
+                                <div class="progress-bar @(stat.SuccessRate >= 50 ? "bg-success" : "bg-warning")" 
+                                     role="progressbar" style="width: @stat.SuccessRate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%" 
+                                     aria-valuenow="@stat.SuccessRate.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <span class="mono">@stat.SuccessRate.ToString("0.00")%</span>
+                        </div>
+                    </td>
+                    <td class="mono">@(stat.AvgFinalMinutes?.ToString("0.0") ?? "N/A")</td>
+                    <td class="mono">@(stat.AvgHints?.ToString("0.00") ?? "N/A")</td>
+                    <td class="mono" style="color: var(--accent);">@stat.Revenue.ToString("C0", new System.Globalization.CultureInfo("en-US"))</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

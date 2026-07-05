@@ -1,0 +1,120 @@
+@page
+@using EnigmaChamber.Web.Models
+@model EnigmaChamber.Web.Pages.Staff.IndexModel
+@{
+    ViewData["Title"] = "Staff";
+    ViewData["ActiveNav"] = "staff";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Staff</h1>
+        <p class="page-subtitle">Manage personnel and security clearances</p>
+    </div>
+    <button type="button" class="btn btn-enigma" data-bs-toggle="modal" data-bs-target="#staffModal"
+            onclick="document.getElementById('staffForm').reset(); document.getElementById('Input_Id').value = '0';">
+        + New Staff
+    </button>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-dark table-enigma align-middle">
+        <thead>
+        <tr>
+            <th style="width: 50px;">ID</th>
+            <th>NAME</th>
+            <th>ROLE</th>
+            <th>STATUS</th>
+            <th class="text-end">ACTIONS</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var s in Model.StaffList)
+        {
+            <tr>
+                <td class="mono row-num">@s.Id.ToString("D3")</td>
+                <td class="fw-bold">@s.Name</td>
+                <td><span class="badge bg-secondary" style="font-size: 0.7rem;">@s.Role</span></td>
+                <td>
+                    @if (s.IsActive)
+                    {
+                        <span class="badge bg-success" style="font-size: 0.7rem;">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-danger" style="font-size: 0.7rem;">Inactive</span>
+                    }
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-enigma" 
+                            data-bs-toggle="modal" data-bs-target="#staffModal"
+                            data-id="@s.Id" data-name="@s.Name" data-role="@s.Role" data-active="@s.IsActive.ToString().ToLower()">
+                        EDIT
+                    </button>
+                </td>
+            </tr>
+        }
+        @if (Model.StaffList.Count == 0)
+        {
+            <tr>
+                <td colspan="5">
+                    <div class="empty-state">No staff members found. Add a new staff member.</div>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="staffModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="false">
+    <div class="modal-dialog">
+        <form method="post" id="staffForm" asp-page-handler="Save" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Staff Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div asp-validation-summary="ModelOnly" class="text-validation-error mb-2"></div>
+                <input type="hidden" asp-for="Input.Id" />
+                
+                <div class="mb-3">
+                    <label asp-for="Input.Name" class="form-label"></label>
+                    <input asp-for="Input.Name" class="form-control" required />
+                </div>
+                
+                <div class="mb-3">
+                    <label asp-for="Input.Role" class="form-label"></label>
+                    <select asp-for="Input.Role" class="form-select">
+                        <option value="@StaffRoles.GameMaster">Game Master</option>
+                        <option value="@StaffRoles.Actor">Actor</option>
+                    </select>
+                </div>
+                
+                <div class="form-check">
+                    <input asp-for="Input.IsActive" class="form-check-input" />
+                    <label asp-for="Input.IsActive" class="form-check-label"></label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-enigma" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-enigma">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const staffModal = document.getElementById('staffModal');
+        staffModal.addEventListener('show.bs.modal', event => {
+            const btn = event.relatedTarget;
+            if (!btn || !btn.hasAttribute('data-id')) return;
+            
+            document.getElementById('Input_Id').value = btn.dataset.id;
+            document.getElementById('Input_Name').value = btn.dataset.name;
+            document.getElementById('Input_Role').value = btn.dataset.role;
+            document.getElementById('Input_IsActive').checked = btn.dataset.active === 'true';
+        });
+    </script>
+}

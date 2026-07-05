@@ -1,0 +1,65 @@
+@page
+@model EnigmaChamber.Web.Pages.Results.EntryModel
+@{
+    ViewData["Title"] = "Submit Result";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Game Completion</h1>
+        <p class="page-subtitle">Record result — system calculates final time (+2 min penalty per hint)</p>
+    </div>
+    <a class="btn btn-outline-enigma" asp-page="/Index">Back</a>
+</div>
+
+@if (Model.Booking is not null)
+{
+    <div class="row g-4">
+        <div class="col-md-5">
+            <div class="section-label">Game Data</div>
+            <div class="enigma-card">
+                <div class="mb-2"><span class="text-muted">Room:</span> <strong>@Model.Booking.Room?.Name</strong></div>
+                <div class="mb-2"><span class="text-muted">Team:</span> @Model.Booking.CustomerName</div>
+                <div class="mb-2"><span class="text-muted">Players:</span> @Model.Booking.PlayerCount</div>
+                <div class="mb-2"><span class="text-muted">Start Time:</span> <span class="mono">@Model.Booking.ScheduledAt.ToString("dd.MM.yyyy HH:mm")</span></div>
+                <div><span class="text-muted">Time Limit:</span> @Model.Booking.Room?.DurationMinutes min</div>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="section-label">Result</div>
+            <form method="post" class="enigma-card">
+                <div asp-validation-summary="ModelOnly" class="text-validation-error mb-2"></div>
+                <input type="hidden" asp-for="Input.BookingId" />
+
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.ElapsedMinutes" class="form-label"></label>
+                        <input asp-for="Input.ElapsedMinutes" class="form-control" />
+                        <span asp-validation-for="Input.ElapsedMinutes" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label asp-for="Input.HintsUsed" class="form-label"></label>
+                        <input asp-for="Input.HintsUsed" class="form-control" />
+                        <span asp-validation-for="Input.HintsUsed" class="field-validation-error"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.Notes" class="form-label"></label>
+                    <textarea asp-for="Input.Notes" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input asp-for="Input.Success" class="form-check-input" />
+                    <label asp-for="Input.Success" class="form-check-label"></label>
+                </div>
+
+                <button type="submit" class="btn btn-enigma">Save Result</button>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
